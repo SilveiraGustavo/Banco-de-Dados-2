@@ -29,3 +29,23 @@ def str_record(record):
         return str(record)
     else:
         return "No key found."
+
+def get_key(record):
+    return record[0]
+
+def get_record(record):
+    return record
+
+def create_bucket(sizeBucket =  1024, depth = 2):
+    return {
+        'depth':  depth,
+        'sizeBucket': sizeBucket,
+        'record': []
+    }
+
+def str_bucket(bucket):
+    aux =  "depth: {}".format(bucket['depth'])
+    for i in bucket['record']:
+        aux = aux + "(" + str_record(i) + ")" + " , "
+    
+    return aux + "| "
