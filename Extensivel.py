@@ -47,5 +47,33 @@ def str_bucket(bucket):
     aux =  "depth: {}".format(bucket['depth'])
     for i in bucket['record']:
         aux = aux + "(" + str_record(i) + ")" + " , "
-    
     return aux + "| "
+
+
+def size_bucket(bucket):
+    return sum(sys.getsizeof(i) for i in bucket['record'])
+
+def empty(bucket): 
+    return not bucket['record']
+
+def full(bucket):
+    if empty(bucket):
+        return False
+    else: 
+        if (bucket['sizeBucket'] - size_bucket(bucket)) >= size_record(bucket['registros'][0]):
+            return False
+        else:
+            return True
+
+
+def Insert_into_bucket(bucket, element, ignore=False):
+    if not full(bucket):
+        bucket['record'].append(element)
+        return None
+    else: 
+        bucket['record'].append(element)
+        if not ignore:
+            bucket['depth'] += 1
+            new_bucket = create_bucket(bucket['sizeBucket'], bucket['depth'])
+            return new_bucket
+        return None
