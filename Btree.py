@@ -12,7 +12,7 @@ import argparse
 Time = time.time()
 
 size_page =  4096 # Definindo o tamanho da página em Bytes
-file = "arquivo" # Definindo o arquivo que vai ser utilizado 
+file = "arquivo1.csv" # Definindo o arquivo que vai ser utilizado 
 
 def create_record(Fields=None):
     if Fields is None:
@@ -217,7 +217,7 @@ if __name__ == '__main__':
     args = get_arguments()
     file = open(args.filename)
     dados = csv.DictReader(file)
-    Bmais = {'raiz': create_page(sheet==True, size_page=args.tamPagina)}
+    Bmais = {'raiz': create_page(sheet==True, size_page=args.size_page)}
 
     quantidade = 0
     for data in dados:
@@ -226,14 +226,14 @@ if __name__ == '__main__':
             quantidade += 1
             aux = [int(a) for a in operacao[1:]]
             aux = {'record': [aux]}
-            cha, pag = insert(Bmais, pag=Bmais['raiz'], elemento=aux)
+            cha, pag = insert(Bmais, pag=Bmais['raiz'], element=aux)
 
             if quantidade == 1072:
                 print(quantidade)
                 
     end_time = time.time()
     
-    elapsed_time = end_time - start_time
+    elapsed_time = end_time - time
     
     print('As operações demoraram {} segundos'.format(elapsed_time))
 
@@ -264,4 +264,3 @@ if __name__ == '__main__':
             break
         else:
             print("Tentativa invalida! Tente novamente!")
-
