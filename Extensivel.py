@@ -1,6 +1,9 @@
-# -*- coding: utf-8 -*-
-# Final Project for Database Course
-# Professor: Marcos Roberto Ribeiro
+# Implementação de Árvore B+
+# Disciplina: Banco de Dados 2
+# Alunos: Gustavo Silveira Dias e Bruno Augusto de Oliveira 
+# Curso: Engenharia de Computação 
+# Professor: Marcos Roberto
+
 
 import sys
 import csv
@@ -132,7 +135,7 @@ if __name__ == '__main__':
     print('Operations completed in {:.4f} seconds'.format(elapsed_time))
 
     while True:
-        choice = int(input("--- Menu ---\n1) Search Element\n2) Remove Element\n3) Show Hash\n4) Exit\n"))
+        choice = int(input("--- Menu ---\n1)Buscar Elemento.\n2) Remover Elemento,\n3) Mostrar Hash.\n4) Sair.\n"))
         if choice == 1:
             key = int(input("Enter key to search: "))
             record = main_hash.search(key)
