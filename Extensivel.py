@@ -2,178 +2,131 @@
 # Final Project for Database Course
 # Professor: Marcos Roberto Ribeiro
 
-# Application: Extendible Hashing
-
 import sys
 import csv
-import numpy as np
 import time
 
-start_time = time.time()
-
 PAGE_SIZE_DEFAULT = 4096  # Change the page size here
-FILE_DEFAULT = "arquivo1.csv"  # Change the test file here
+FILE_DEFAULT = "output.csv"  # Change the test file here
 
-# ---------------------------------------------------------------------------------------
-# Record implementation
-def create_record(fields=None):
-    if fields is None:
-        fields = [[], []]
-    key = int(fields[0])
-    fields = fields[1:]
-    return key, fields
+class Record:
+    def __init__(self, key, fields=None):
+        self.key = key
+        self.fields = fields or []
 
-def record_size(record):
-    return sys.getsizeof(record[0]) + sum(sys.getsizeof(x) for x in record[1])
+    def size(self):
+        return sys.getsizeof(self.key) + sum(sys.getsizeof(field) for field in self.fields)
 
-def record_to_str(record):
-    if record is not None and isinstance(record, tuple):
-        return "{k}:{c}".format(k=record[0], c=record[1])
-    elif record is not None and isinstance(record, int):
-        return str(record)
-    else:
-        return "Key not found!"
+    def __str__(self):
+        return f"{self.key}:{self.fields}"
 
-def get_key(record):
-    return record[0]
 
-def get_record(record):
-    return record
+class Bucket:
+    def __init__(self, bucket_size=1024, depth=2):
+        self.depth = depth
+        self.bucket_size = bucket_size
+        self.records = []
 
-# ---------------------------------------------------------------------------------------
-# Bucket implementation
-def create_bucket(bucket_size=1024, depth=2):
-    return {
-        'depth': depth,
-        'bucket_size': bucket_size,
-        'records': []
-    }
+    def is_empty(self):
+        return not self.records
 
-def bucket_to_str(bucket):
-    aux = "|Depth:{} ".format(bucket['depth'])
-    for x in bucket['records']:
-        aux += "(" + record_to_str(x) + ") , "
-    return aux + "| "
+    def is_full(self):
+        return self.bucket_size - self.size() < self.records[0].size() if self.records else False
 
-def bucket_size(bucket):
-    return sum(sys.getsizeof(x) for x in bucket['records'])
+    def size(self):
+        return sum(record.size() for record in self.records)
 
-def is_empty(bucket):
-    return not bucket['records']
+    def insert(self, record, ignore_overflow=False):
+        if not self.is_full():
+            self.records.append(record)
+            return None
+        else:
+            if not ignore_overflow:
+                self.depth += 1
+                return Bucket(self.bucket_size, self.depth)
+            return None
 
-def is_full(bucket):
-    if is_empty(bucket):
-        return False
-    else:
-        return (bucket['bucket_size'] - bucket_size(bucket)) < record_size(bucket['records'][0])
-
-def insert_into_bucket(bucket, element, ignore=False):
-    if not is_full(bucket):
-        bucket['records'].append(element)
-        return None
-    else:
-        bucket['records'].append(element)
-        if not ignore:
-            bucket['depth'] += 1
-            new_bucket = create_bucket(bucket['bucket_size'], bucket['depth'])
-            return new_bucket
+    def remove(self, key):
+        for i, record in enumerate(self.records):
+            if record.key == key:
+                return self.records.pop(i)
         return None
 
-# ---------------------------------------------------------------------------------------
-# Extendible Hash implementation
-def create_extendible_hash(bucket_size=1024):
-    global_depth = 2
-    bucket_list = [create_bucket(bucket_size) for _ in range(2 ** global_depth)]
+    def __str__(self):
+        return f"|Depth:{self.depth} " + ", ".join(str(record) for record in self.records) + "|"
 
-    return {
-        'global_depth': global_depth,
-        'bucket_size': bucket_size,
-        'bucket_list': bucket_list
-    }
 
-def remove_from_hash(ext_hash, key):
-    pos, target_bucket = search_in_hash(ext_hash, key)
-    if pos is not None and target_bucket is not None:
-        return target_bucket['records'].pop(pos)
-    else:
+class ExtendibleHash:
+    def __init__(self, bucket_size=1024):
+        self.global_depth = 2
+        self.bucket_size = bucket_size
+        self.bucket_list = [Bucket(bucket_size) for _ in range(2 ** self.global_depth)]
+
+    def _get_hash_key(self, key, depth=None):
+        depth = depth if depth is not None else self.global_depth
+        return key % (2 ** depth)
+
+    def insert(self, record):
+        hash_key = self._get_hash_key(record.key)
+        new_bucket = self.bucket_list[hash_key].insert(record)
+
+        if new_bucket:
+            self._split_bucket(hash_key, record, new_bucket)
+
+    def _split_bucket(self, hash_key, record, new_bucket):
+        if new_bucket.depth > self.global_depth:
+            self._double_directory()
+
+        prev_depth = new_bucket.depth - 1
+        first_index = self._get_hash_key(record.key, prev_depth) + (2 ** prev_depth)
+        self.bucket_list[first_index] = new_bucket
+        step = 2 ** (self.global_depth - new_bucket.depth)
+
+        for i in range(1, step):
+            self.bucket_list[first_index + i * (2 ** new_bucket.depth)] = new_bucket
+
+        overflow_records = self.bucket_list[hash_key].records[:]
+        self.bucket_list[hash_key].records = []
+        self._handle_overflow(overflow_records)
+
+    def _double_directory(self):
+        self.global_depth += 1
+        self.bucket_list.extend(self.bucket_list[:])
+
+    def _handle_overflow(self, records):
+        for record in records:
+            new_hash_key = self._get_hash_key(record.key)
+            self.bucket_list[new_hash_key].insert(record, ignore_overflow=True)
+
+    def remove(self, key):
+        hash_key = self._get_hash_key(key)
+        return self.bucket_list[hash_key].remove(key)
+
+    def search(self, key):
+        hash_key = self._get_hash_key(key)
+        for record in self.bucket_list[hash_key].records:
+            if record.key == key:
+                return record
         return None
 
-def search_in_hash(ext_hash, key):
-    hash_key = key % (2 ** ext_hash['global_depth'])
-    prev_depth = ext_hash['global_depth']
-    current_depth = ext_hash['bucket_list'][hash_key]['depth']
+    def __str__(self):
+        return "\n".join(f"Index {i} --> {bucket}" for i, bucket in enumerate(self.bucket_list))
 
-    while prev_depth > current_depth:
-        prev_depth = current_depth
-        hash_key = key % (2 ** current_depth)
-        current_depth = ext_hash['bucket_list'][hash_key]['depth']
-
-    target_bucket = ext_hash['bucket_list'][hash_key]
-    position = next((i for i, record in enumerate(target_bucket['records']) if get_key(record) == key), None)
-    return position, target_bucket if position is not None else (None, None)
-
-def insert_into_hash(ext_hash, element):
-    hash_key = get_key(element) % (2 ** ext_hash['global_depth'])
-    new_bucket = insert_into_bucket(ext_hash['bucket_list'][hash_key], element)
-
-    if new_bucket is not None:
-        if new_bucket['depth'] > ext_hash['global_depth']:
-            ext_hash['global_depth'] += 1
-            prev_divisor = 2 ** (ext_hash['global_depth'] - 1)
-            curr_divisor = 2 ** ext_hash['global_depth']
-            ext_hash['bucket_list'].extend(ext_hash['bucket_list'][:prev_divisor])
-
-            prev_depth = new_bucket['depth'] - 1
-            first_index = get_key(element) % (2 ** prev_depth) + (2 ** prev_depth)
-            ext_hash['bucket_list'][first_index] = new_bucket
-            step = 2 ** (ext_hash['global_depth'] - new_bucket['depth'])
-
-            for i in range(1, step):
-                ext_hash['bucket_list'][first_index + i * (2 ** new_bucket['depth'])] = new_bucket
-
-            overflow_records = ext_hash['bucket_list'][hash_key]['records'][:]
-            ext_hash['bucket_list'][hash_key]['records'] = []
-            handle_overflow(ext_hash, overflow_records)
-
-def handle_overflow(ext_hash, records):
-    mod_value = 2 ** ext_hash['global_depth']
-    for record in records:
-        new_hash_key = get_key(record) % mod_value
-        insert_into_bucket(ext_hash['bucket_list'][new_hash_key], record, ignore=True)
-
-def extendible_hash_to_str(ext_hash):
-    result = ""
-    for idx, bucket in enumerate(ext_hash['bucket_list']):
-        result += "Index {} --> {}\n".format(idx, bucket_to_str(bucket))
-    return result
-
-def get_arguments(show_help=False):
-    import argparse
-    parser = argparse.ArgumentParser('ExtendibleHash')
-    parser.add_argument('-p', '--pageSize', type=int, default=PAGE_SIZE_DEFAULT, help=f'Page size (default: {PAGE_SIZE_DEFAULT})')
-    parser.add_argument('-f', '--filename', type=str, default=FILE_DEFAULT, help=f'Input file (default: {FILE_DEFAULT})')
-    args = parser.parse_args()
-    if show_help:
-        parser.print_help()
-    return args
 
 if __name__ == '__main__':
-    args = get_arguments()
-    with open(args.filename) as file:
+    start_time = time.time()
+    with open(FILE_DEFAULT) as file:
         data_reader = csv.DictReader(file)
-        main_hash = create_extendible_hash(args.pageSize)
-        op_count = 0
+        main_hash = ExtendibleHash(PAGE_SIZE_DEFAULT)
 
         for row in data_reader:
             operation = list(row.values())
             if operation[0] == "+":
-                op_count += 1
                 values = [int(v) for v in operation[1:]]
-                record = create_record(values)
-                insert_into_hash(main_hash, record)
+                record = Record(values[0], values[1:])
+                main_hash.insert(record)
             elif operation[0] == "-":
-                op_count += 1
-                remove_from_hash(main_hash, int(operation[1]))
+                main_hash.remove(int(operation[1]))
 
     elapsed_time = time.time() - start_time
     print('Operations completed in {:.4f} seconds'.format(elapsed_time))
@@ -182,20 +135,14 @@ if __name__ == '__main__':
         choice = int(input("--- Menu ---\n1) Search Element\n2) Remove Element\n3) Show Hash\n4) Exit\n"))
         if choice == 1:
             key = int(input("Enter key to search: "))
-            record, bucket = search_in_hash(main_hash, key)
-            if record is not None:
-                print(f"Found element: {record_to_str(bucket['records'][record])} in bucket {bucket}")
-            else:
-                print("Element not found!")
+            record = main_hash.search(key)
+            print(f"Found: {record}" if record else "Element not found!")
         elif choice == 2:
             key = int(input("Enter key to remove: "))
-            removed = remove_from_hash(main_hash, key)
-            if removed:
-                print(f"Removed element: {record_to_str(removed)}")
-            else:
-                print("Element not found!")
+            removed = main_hash.remove(key)
+            print(f"Removed: {removed}" if removed else "Element not found!")
         elif choice == 3:
-            print("\n--- Extendible Hash ---\n", extendible_hash_to_str(main_hash))
+            print("\n--- Extendible Hash ---\n", main_hash)
         elif choice == 4:
             break
         else:

@@ -4,7 +4,7 @@ import time
 import argparse
 
 PAGE_SIZE_DEFAULT = 4096  # change page size here
-FILE_DEFAULT = "arquivo1.csv"  # change test file here
+FILE_DEFAULT = "output.csv"  # change test file here
 
 class Record:
     def __init__(self, fields=None):
@@ -77,6 +77,15 @@ class Page:
             if not self.is_full():
                 self.records.append(element)
                 self.records.sort(key=lambda x: x.get_key())
+
+    def __repr__(self):
+        if self.is_leaf():
+            records = [r.get_key() for r in self.records]
+            return f"LeafPage(keys={records}, right_sibling={'None' if self.right_sibling is None else 'Exists'})"
+        else:
+            keys = self.keys
+            children = len(self.children)
+            return f"InternalPage(keys={keys}, children_count={children})"
 
 
 class BPlusTree:
@@ -180,11 +189,19 @@ class BPlusTree:
             new_root.children = [self.root, new_page]
             self.root = new_root
 
+    def print_tree(self, page=None, level=0):
+        if page is None:
+            page = self.root
+        indent = "  " * level
+        if page.is_leaf():
+            print(f"{indent}Leaf (keys: {[r.get_key() for r in page.records]})")
+        else:
+            print(f"{indent}Internal (keys: {page.keys})")
+            for child in page.children:
+                self.print_tree(child, level + 1)
 
 
 if __name__ == '__main__':
-    
-
     def get_arguments(print_help=False):
         parser = argparse.ArgumentParser('BPlusTree')
         parser.add_argument('-ps', '--page_size', action='store', type=int,
@@ -221,7 +238,7 @@ if __name__ == '__main__':
 
     while True:
         choice = int(input(
-            "---Menu:---\n1) Search Element.\n2) Search Range.\n3) Show Tree.\n4) Exit.\n"))
+            "---Menu:---\n1) Buscar Elemento. \n2) Bucar por Faixa. \n3) Mostrar Árvore.\n4) Sair.\n"))
         if choice == 1:
             search_key = int(input("Enter the key to search: "))
             result, page = b_plus_tree.search_record(search_key)
@@ -238,7 +255,8 @@ if __name__ == '__main__':
             else:
                 print("No elements found in the range.")
         elif choice == 3:
-            print("\n------------ B+ Tree -------------\n\n", b_plus_tree.root)
+            print("\n------------ B+ Tree -------------\n")
+            b_plus_tree.print_tree()
         elif choice == 4:
             break
         else:
