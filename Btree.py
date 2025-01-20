@@ -1,3 +1,8 @@
+# Implementação de Árvore B+
+# Disciplina: Banco de Dados 2
+# Alunos: Gustavo Silveira Dias e Bruno Augusto de Oliveira 
+# Curso: Engenharia de Computação 
+# Professor: Marcos Roberto
 import sys
 import csv
 import time
