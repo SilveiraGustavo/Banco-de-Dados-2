@@ -1,15 +1,16 @@
 # Implementação de Árvore B+
 # Disciplina: Banco de Dados 2
-# Alunos: Gustavo Silveira Dias e Bruno Augusto de Oliveira 
-# Curso: Engenharia de Computação 
+# Alunos: Gustavo Silveira Dias e Bruno Augusto de Oliveira
+# Curso: Engenharia de Computação
 # Professor: Marcos Roberto
+
 import sys
 import csv
 import time
 import argparse
 
-PAGE_SIZE_DEFAULT = 4096  # change page size here
-FILE_DEFAULT = "output.csv"  # change test file here
+PAGE_SIZE_DEFAULT = 4096  # Tamanho da página
+FILE_DEFAULT = "output.csv"  # Arquivo padrão de teste
 
 class Record:
     def __init__(self, fields=None):
@@ -194,6 +195,55 @@ class BPlusTree:
             new_root.children = [self.root, new_page]
             self.root = new_root
 
+    def remove(self, page, key):
+        if page.is_leaf():
+            # Remove o elemento na página folha
+            for i, record in enumerate(page.records):
+                if record.get_key() == key:
+                    page.records.pop(i)
+                    return True
+            return False  # Chave não encontrada
+        else:
+            # Localiza o filho correto e tenta remover o elemento
+            child = page.find_child(key)
+            removed = self.remove(child, key)
+            if removed and len(child.records) < self.page_size // 2:
+                self.rebalance(page, child)
+            return removed
+
+    def rebalance(self, parent, child):
+        index = parent.children.index(child)
+
+        # Tenta redistribuir com o irmão esquerdo
+        if index > 0:
+            left_sibling = parent.children[index - 1]
+            if len(left_sibling.records) > self.page_size // 2:
+                # Redistribui um elemento do irmão esquerdo
+                child.records.insert(0, left_sibling.records.pop())
+                parent.keys[index - 1] = child.records[0].get_key()
+                return
+
+        # Tenta redistribuir com o irmão direito
+        if index < len(parent.children) - 1:
+            right_sibling = parent.children[index + 1]
+            if len(right_sibling.records) > self.page_size // 2:
+                # Redistribui um elemento do irmão direito
+                child.records.append(right_sibling.records.pop(0))
+                parent.keys[index] = right_sibling.records[0].get_key()
+                return
+
+        # Caso não seja possível redistribuir, funde os nós
+        if index > 0:
+            left_sibling = parent.children[index - 1]
+            left_sibling.records.extend(child.records)
+            parent.children.pop(index)
+            parent.keys.pop(index - 1)
+        else:
+            right_sibling = parent.children[index + 1]
+            child.records.extend(right_sibling.records)
+            parent.children.pop(index + 1)
+            parent.keys.pop(index)
+
     def print_tree(self, page=None, level=0):
         if page is None:
             page = self.root
@@ -211,11 +261,11 @@ if __name__ == '__main__':
         parser = argparse.ArgumentParser('BPlusTree')
         parser.add_argument('-ps', '--page_size', action='store', type=int,
                             default=PAGE_SIZE_DEFAULT,
-                            help='Maximum page size (default: ' +
+                            help='Tamanho máximo da página (padrão: ' +
                                  str(PAGE_SIZE_DEFAULT) + ')')
         parser.add_argument('-f', '--filename', action='store', type=str,
                             default=FILE_DEFAULT,
-                            help='Input filename (default: ' +
+                            help='Arquivo de entrada (padrão: ' +
                                  FILE_DEFAULT + ')')
         args = parser.parse_args()
         if print_help:
@@ -227,42 +277,44 @@ if __name__ == '__main__':
         data = csv.DictReader(FILE_DEFAULT)
         b_plus_tree = BPlusTree(page_size=args.page_size)
 
-        count = 0
         for row in data:
             operation = list(row.values())
             if operation[0] == "+":
-                count += 1
                 aux = [int(a) for a in operation[1:]]
                 aux = Record(fields=aux)
                 b_plus_tree.insert_root(aux)
 
-                if count == 1072:
-                    print(count)
-
-    print("\nTree successfully created! Select an option from the menu:")
+    print("\nÁrvore B+ criada com sucesso!")
 
     while True:
-        choice = int(input(
-            "---Menu:---\n1) Buscar Elemento. \n2) Bucar por Faixa. \n3) Mostrar Árvore.\n4) Sair.\n"))
-        if choice == 1:
-            search_key = int(input("Enter the key to search: "))
-            result, page = b_plus_tree.search_record(search_key)
-            if result:
-                print("Record found: ", result.format())
+        opcao = int(input(
+            "----------------- Menu -----------------\n1) Buscar Elemento. \n2) Buscar por Faixa. \n3) Mostrar Árvore.\n4) Remover Elemento.\n5) Sair.\n ----------------------------------\n Escolha uma das opções acima.\n"))
+        if opcao == 1:
+            chave_busca = int(input("Digite a chave para buscar: "))
+            resultado, pagina = b_plus_tree.search_record(chave_busca)
+            if resultado:
+                print("Registro encontrado: ", resultado.format())
             else:
-                print("Element not found.")
-        elif choice == 2:
-            k1 = int(input("Enter the start value of the range: "))
-            k2 = int(input("Enter the end value of the range: "))
-            results = b_plus_tree.search_range(k1, k2)
-            if results:
-                print("Elements in the range: ", results)
+                print("Elemento não encontrado.")
+        elif opcao == 2:
+            k1 = int(input("Digite o valor inicial do intervalo: "))
+            k2 = int(input("Digite o valor final do intervalo: "))
+            resultados = b_plus_tree.search_range(k1, k2)
+            if resultados:
+                print("Elementos no intervalo: ", resultados)
             else:
-                print("No elements found in the range.")
-        elif choice == 3:
-            print("\n------------ B+ Tree -------------\n")
+                print("Nenhum elemento encontrado no intervalo.")
+        elif opcao == 3:
+            print("\n------------ Árvore B+ -------------\n")
             b_plus_tree.print_tree()
-        elif choice == 4:
+        elif opcao == 4:
+            chave_remover = int(input("Digite a chave do elemento a ser removido: "))
+            removido = b_plus_tree.remove(b_plus_tree.root, chave_remover)
+            if removido:
+                print("Elemento removido com sucesso!")
+            else:
+                print("Elemento não encontrado para remoção.")
+        elif opcao == 5:
             break
         else:
-            print("Invalid attempt! Try again!")
+            print("Opção inválida! Tente novamente!")
