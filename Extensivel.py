@@ -1,16 +1,10 @@
-# Implementação de Árvore B+
-# Disciplina: Banco de Dados 2
-# Alunos: Gustavo Silveira Dias e Bruno Augusto de Oliveira 
-# Curso: Engenharia de Computação 
-# Professor: Marcos Roberto
-
-
 import sys
 import csv
 import time
+import matplotlib.pyplot as plt
 
-PAGE_SIZE_DEFAULT = 4096  # Change the page size here
-FILE_DEFAULT = "output.csv"  # Change the test file here
+PAGE_SIZE_DEFAULT = 4096  # Tamanho da página padrão
+FILE_DEFAULT = "arquivo3.csv"  # Arquivo de teste
 
 class Record:
     def __init__(self, key, fields=None):
@@ -113,11 +107,15 @@ class ExtendibleHash:
         return None
 
     def __str__(self):
-        return "\n".join(f"Index {i} --> {bucket}" for i, bucket in enumerate(self.bucket_list))
+        return "\n".join(f"Índice {i} --> {bucket}" for i, bucket in enumerate(self.bucket_list))
 
 
 if __name__ == '__main__':
     start_time = time.time()
+    
+    # A lista que armazena o tempo total de execução
+    tempos_execucao = []
+
     with open(FILE_DEFAULT) as file:
         data_reader = csv.DictReader(file)
         main_hash = ExtendibleHash(PAGE_SIZE_DEFAULT)
@@ -131,22 +129,31 @@ if __name__ == '__main__':
             elif operation[0] == "-":
                 main_hash.remove(int(operation[1]))
 
-    elapsed_time = time.time() - start_time
-    print('Operations completed in {:.4f} seconds'.format(elapsed_time))
+    # Calcula o tempo total de execução
+    tempo_total = time.time() - start_time
+    tempos_execucao.append(tempo_total)
+
+    print(f'Operações completadas em {tempo_total:.4f} segundos.')
+
+    # Gera o gráfico com o tempo total de execução
+    plt.bar(['Execução Completa'], tempos_execucao)
+    plt.ylabel('Tempo (segundos)')
+    plt.title('Tempo Total de Execução das Inserções')
+    plt.show()
 
     while True:
-        choice = int(input("--- Menu ---\n1)Buscar Elemento.\n2) Remover Elemento,\n3) Mostrar Hash.\n4) Sair.\n"))
-        if choice == 1:
-            key = int(input("Enter key to search: "))
-            record = main_hash.search(key)
-            print(f"Found: {record}" if record else "Element not found!")
-        elif choice == 2:
-            key = int(input("Enter key to remove: "))
-            removed = main_hash.remove(key)
-            print(f"Removed: {removed}" if removed else "Element not found!")
-        elif choice == 3:
-            print("\n--- Extendible Hash ---\n", main_hash)
-        elif choice == 4:
+        escolha = int(input("--- Menu ---\n1)Buscar Elemento.\n2) Remover Elemento,\n3) Mostrar Hash.\n4) Sair.\n"))
+        if escolha == 1:
+            chave = int(input("Digite a chave para buscar: "))
+            registro = main_hash.search(chave)
+            print(f"Encontrado: {registro}" if registro else "Elemento não encontrado!")
+        elif escolha == 2:
+            chave = int(input("Digite a chave para remover: "))
+            removido = main_hash.remove(chave)
+            print(f"Removido: {removido}" if removido else "Elemento não encontrado!")
+        elif escolha == 3:
+            print("\n--- Hash Expansível ---\n", main_hash)
+        elif escolha == 4:
             break
         else:
-            print("Invalid option! Try again!")
+            print("Opção inválida! Tente novamente!")

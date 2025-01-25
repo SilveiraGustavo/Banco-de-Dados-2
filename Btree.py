@@ -1,16 +1,12 @@
-# Implementação de Árvore B+
-# Disciplina: Banco de Dados 2
-# Alunos: Gustavo Silveira Dias e Bruno Augusto de Oliveira
-# Curso: Engenharia de Computação
-# Professor: Marcos Roberto
 
 import sys
 import csv
 import time
 import argparse
+import matplotlib.pyplot as plt  # Para plotar o gráfico
 
 PAGE_SIZE_DEFAULT = 4096  # Tamanho da página
-FILE_DEFAULT = "output.csv"  # Arquivo padrão de teste
+FILE_DEFAULT = "arquivo3.csv"  # Arquivo padrão de teste
 
 class Record:
     def __init__(self, fields=None):
@@ -277,6 +273,9 @@ if __name__ == '__main__':
         data = csv.DictReader(FILE_DEFAULT)
         b_plus_tree = BPlusTree(page_size=args.page_size)
 
+        # Medir o tempo total das inserções
+        start_time = time.time()
+
         for row in data:
             operation = list(row.values())
             if operation[0] == "+":
@@ -284,11 +283,20 @@ if __name__ == '__main__':
                 aux = Record(fields=aux)
                 b_plus_tree.insert_root(aux)
 
-    print("\nÁrvore B+ criada com sucesso!")
+        end_time = time.time()
+        total_time = end_time - start_time
+
+        print("\nÁrvore B+ criada com sucesso!")
+
+        # Plotando o gráfico
+        plt.bar(['Inserções'], [total_time])
+        plt.ylabel('Tempo de Execução (segundos)')
+        plt.title('Tempo de Execução das Inserções no B+ Tree')
+        plt.show()
 
     while True:
         opcao = int(input(
-            "----------------- Menu -----------------\n1) Buscar Elemento. \n2) Buscar por Faixa. \n3) Mostrar Árvore.\n4) Remover Elemento.\n5) Sair.\n ----------------------------------\n Escolha uma das opções acima.\n"))
+            "----------------- Menu -----------------\n1) Busca por Elemento. \n2) Buscar por Intervalo. \n3) Mostrar Árvore.\n4) Remover Elemento.\n5) Sair.\n ----------------------------------\n Escolha uma das opções acima.\n"))
         if opcao == 1:
             chave_busca = int(input("Digite a chave para buscar: "))
             resultado, pagina = b_plus_tree.search_record(chave_busca)
